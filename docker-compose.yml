@@ -22,8 +22,8 @@ services:
     volumes:
       - webai-data:/app/data
     ports:
-      - "127.0.0.1:3000:3000"   # API + WebUI
-      - "127.0.0.1:5900:5900"   # VNC (for sign-in)
+      - "127.0.0.1:3002:3000"   # API + WebUI
+      - "127.0.0.1:5902:5900"   # VNC (for sign-in)
     shm_size: "2gb"
     init: true
     labels:
@@ -47,7 +47,7 @@ services:
       UPSTREAM_AUTH: "${WEBAI_API_KEY}"
       WATERMARK_BINARY: "/usr/local/bin/GeminiWatermarkTool"
     ports:
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:3003:3001"
     depends_on:
       - webai-2api
     labels:
