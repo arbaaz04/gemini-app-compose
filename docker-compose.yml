@@ -1,0 +1,61 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Gemini App Compose
+#
+# Services:
+#   webai-2api        → Wraps gemini.google.com via Camoufox
+#   watermark-remover → Strips Gemini watermarks from generated images
+#
+# Sign in:
+#   Visit https://gemini.chatflow.tech/webui after deploy
+#   Go to Workers → click Login → sign into gemini.google.com in the browser
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── WebAI2API — Gemini app via Camoufox ───────────────────────────────────
+  webai-2api:
+    image: foxhui/webai-2api:latest
+    container_name: webai-2api
+    restart: unless-stopped
+    volumes:
+      - webai-data:/app/data
+    ports:
+      - "127.0.0.1:3000:3000"   # API + WebUI
+      - "127.0.0.1:5900:5900"   # VNC (for sign-in)
+    shm_size: "2gb"
+    init: true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webai.rule=Host(`${GEMINI_APP_DOMAIN}`)"
+      - "traefik.http.routers.webai.entrypoints=websecure"
+      - "traefik.http.routers.webai.tls.certresolver=letsencrypt"
+      - "traefik.http.services.webai.loadbalancer.server.port=3000"
+
+  # ── Watermark Remover — proxy that strips Gemini watermarks ───────────────
+  watermark-remover:
+    build:
+      context: .
+      dockerfile: Dockerfile.watermark
+    image: watermark-remover:latest
+    container_name: watermark-remover
+    restart: unless-stopped
+    environment:
+      # Points to the webai-2api service internally
+      UPSTREAM_URL: "http://webai-2api:3000"
+      UPSTREAM_AUTH: "${WEBAI_API_KEY}"
+      WATERMARK_BINARY: "/usr/local/bin/GeminiWatermarkTool"
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      - webai-2api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.watermark.rule=Host(`${WATERMARK_DOMAIN}`)"
+      - "traefik.http.routers.watermark.entrypoints=websecure"
+      - "traefik.http.routers.watermark.tls.certresolver=letsencrypt"
+      - "traefik.http.services.watermark.loadbalancer.server.port=3001"
+
+volumes:
+  webai-data:
